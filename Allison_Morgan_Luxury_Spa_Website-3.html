@@ -6,7 +6,7 @@
 <title>Allison Morgan | Luxury Massage Therapy</title>
 <style>
 body{margin:0;font-family:Georgia,serif;background:#f8f6f2;color:#333}
-.hero{background:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.45)),url('https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1400&q=80');background-size:cover;background-pos[...]}
+.hero{background:linear-gradient(rgba(0,0,0,.45),rgba(0,0,0,.45)),url('https://images.unsplash.com/photo-1544161515-4ab6ce6db874?auto=format&fit=crop&w=1400&q=80');background-size:cover;background-position:center;padding:120px 20px;text-align:center;color:#fff}
 .hero h1{font-size:3.5em;margin-bottom:10px}
 .hero p{font-size:1.3em}
 .btn{display:inline-block;margin-top:20px;padding:14px 28px;background:#c8a97e;color:#fff;text-decoration:none;border-radius:30px}
@@ -17,6 +17,21 @@ h2{text-align:center;color:#8b6b43;margin-bottom:35px}
 .testimonial{font-style:italic}
 .contact{background:#2f3b35;color:#fff;border-radius:18px;padding:40px;text-align:center}
 footer{background:#1f2622;color:#fff;text-align:center;padding:25px}
+/* World clock widget styles */
+.world-clock{max-width:920px;margin:24px auto 0;padding:18px;border-radius:14px;background:rgba(255,255,255,0.96);box-shadow:0 6px 20px rgba(0,0,0,0.06);color:#1f2622}
+.wc-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.wc-head h3{margin:0;font-family:Georgia,serif}
+.wc-controls{display:flex;gap:8px;align-items:center}
+.wc-controls input{padding:8px;border-radius:8px;border:1px solid #dcdcdc}
+.wc-controls button{padding:8px 10px;border-radius:8px;border:none;background:#8b6b43;color:#fff;cursor:pointer}
+.wc-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:16px}
+.wc-card{padding:12px;border-radius:10px;background:#fff;border:1px solid #f0efe9}
+.wc-tz{font-weight:700}
+.wc-time{font-family:ui-monospace,monospace;font-size:1.25rem;margin-top:6px}
+.wc-meta{color:#666;font-size:0.9rem;margin-top:6px}
+.wc-remove{background:transparent;border:1px solid #e6e2da;padding:6px 8px;border-radius:8px;color:#8b6b43;cursor:pointer;margin-top:8px}
+.wc-empty{color:#6b6b6b;padding:14px;text-align:center}
+@media (max-width:520px){.hero h1{font-size:2rem}}
 </style>
 </head>
 <body>
@@ -27,10 +42,23 @@ footer{background:#1f2622;color:#fff;text-align:center;padding:25px}
   <a class="btn" href="#contact">Book Your Session</a>
 </div>
 
+<!-- World Clock widget inserted here -->
+<section class="world-clock" id="world-clock">
+  <div class="wc-head">
+    <h3>World Clocks</h3>
+    <div class="wc-controls">
+      <input id="wcw-input" list="wcw-list" placeholder="Add IANA time zone (e.g. Europe/Paris)" aria-label="Time zone">
+      <datalist id="wcw-list"></datalist>
+      <button id="wcw-add">Add</button>
+    </div>
+  </div>
+  <div id="wcw-clocks" class="wc-list" aria-live="polite"></div>
+</section>
+
 <section>
 <h2>Welcome to a Luxury Spa Experience</h2>
 <div class="card">
-<p>At Allison Morgan Massage Therapy, every session is designed to help you relax, reduce stress, ease tension, and restore balance to your body and mind. Enjoy professional massage services delivered[...]</p>
+<p>At Allison Morgan Massage Therapy, every session is designed to help you relax, reduce stress, ease tension, and restore balance to your body and mind. Enjoy professional massage services delivered with care in a calm, luxurious setting.</p>
 </div>
 </section>
 
@@ -74,6 +102,71 @@ footer{background:#1f2622;color:#fff;text-align:center;padding:25px}
 <footer>
 © 2026 Allison Morgan Luxury Massage Therapy
 </footer>
+
+<script>
+// Embedded world clock widget
+(function(){
+  const host = document.getElementById('world-clock');
+  const listEl = host.querySelector('#wcw-list');
+  const clocksEl = host.querySelector('#wcw-clocks');
+  const input = host.querySelector('#wcw-input');
+  const addBtn = host.querySelector('#wcw-add');
+
+  let supported = [];
+  if (typeof Intl.supportedValuesOf === 'function') {
+    try { supported = Intl.supportedValuesOf('timeZone'); } catch(e){ supported = []; }
+  }
+  if (!supported.length) {
+    supported = ['UTC','America/New_York','America/Los_Angeles','Europe/London','Europe/Paris','Asia/Tokyo','Asia/Kolkata','Australia/Sydney'];
+  }
+
+  // populate datalist
+  listEl.innerHTML = '';
+  for (const tz of supported) { const o = document.createElement('option'); o.value = tz; listEl.appendChild(o); }
+
+  // storage
+  const STORAGE_KEY = 'wcw-zones';
+  let zones = new Set([Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC','UTC','America/New_York','Europe/London','Asia/Tokyo']);
+  try{
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (Array.isArray(saved) && saved.length) zones = new Set(saved);
+  }catch(e){}
+
+  function save(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(zones))); }catch(e){} }
+
+  function isValidTZ(tz){ if(!tz) return false; if (supported && supported.length) return supported.includes(tz); try{ new Intl.DateTimeFormat(undefined,{timeZone:tz}).format(); return true;}catch(e){return false;} }
+
+  function createCard(tz){
+    const card = document.createElement('div'); card.className = 'wc-card'; card.dataset.tz = tz;
+    const tzEl = document.createElement('div'); tzEl.className = 'wc-tz'; tzEl.textContent = tz;
+    const timeEl = document.createElement('div'); timeEl.className = 'wc-time'; timeEl.textContent = '--:--:--';
+    const metaEl = document.createElement('div'); metaEl.className = 'wc-meta'; metaEl.textContent = '';
+    const rem = document.createElement('button'); rem.className = 'wc-remove'; rem.type='button'; rem.textContent = 'Remove';
+    rem.addEventListener('click', ()=>{ zones.delete(tz); save(); render(); });
+    card.appendChild(tzEl); card.appendChild(timeEl); card.appendChild(metaEl); card.appendChild(rem);
+    return card;
+  }
+
+  function render(){
+    clocksEl.innerHTML = '';
+    const arr = Array.from(zones);
+    if(!arr.length){ clocksEl.innerHTML = '<div class="wc-empty">No clocks. Add a time zone above.</div>'; return; }
+    for (const tz of arr) clocksEl.appendChild(createCard(tz));
+    update();
+  }
+
+  function formatTimeFor(tz, d){ try{ return new Intl.DateTimeFormat(undefined,{timeZone:tz,hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).format(d);}catch{return 'Invalid TZ'} }
+  function formatDateFor(tz, d){ try{ return new Intl.DateTimeFormat(undefined,{timeZone:tz,weekday:'short',month:'short',day:'numeric'}).format(d);}catch{return ''} }
+
+  function update(){ const now = new Date(); clocksEl.querySelectorAll('[data-tz]').forEach(card=>{ const tz = card.dataset.tz; card.querySelector('.wc-time').textContent = formatTimeFor(tz, now); card.querySelector('.wc-meta').textContent = formatDateFor(tz, now); }); }
+
+  addBtn.addEventListener('click', ()=>{ const tz = input.value && input.value.trim(); if(!tz) return; if(!isValidTZ(tz)){ alert('Unknown time zone: '+tz+'. Use an IANA time zone like "Europe/Paris".'); return; } if(zones.has(tz)){ input.value=''; return; } zones.add(tz); save(); input.value=''; render(); });
+  input.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); addBtn.click(); } });
+
+  render();
+  setInterval(update, 1000);
+})();
+</script>
 
 </body>
 </html>
